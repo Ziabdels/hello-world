@@ -1,0 +1,41 @@
+const crypto = require('crypto');
+const request = require('request');
+
+const bufSecret = Buffer('OUTGOING-WEBHOOK-SECRET', "base64");
+const flowWebhook = 'MICROSOFT-FLOW-URL';
+
+module.exports = function (context, req) {
+    var auth = req.headers['authorization'];
+
+    // HMAC security validation
+    var msgBuf = Buffer.from(req.rawBody, 'utf8');
+    var msgHash = "HMAC " + crypto.createHmac('sha256', bufSecret).update(msgBuf).digest("base64");
+
+    if (msgHash == auth) {
+        request.post(flowWebhook, {
+            body: req.rawBody,
+            headers: { 'content-type': 'application/json' },
+        }, function (error, response, body) {
+            context.res = {
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    "type": "message",
+                    "text": "Thank you!"
+                })
+            };
+            context.done();
+        });
+
+    } else {
+        context.res = {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                "type": "message",
+                "text": "Error: message sender cannot be authenticated."
+            })
+        }
+        context.done();
+    }
+
+};
